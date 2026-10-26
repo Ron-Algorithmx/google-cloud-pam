@@ -1,0 +1,36 @@
+# Copy to terraform.tfvars and replace the placeholder IDs and emails.
+
+org_id           = "123456789012"
+admin_project_id = "abcd-security-admin"
+
+entitlements = {
+  # Replaces "jdoe-adm can impersonate the admin SA whenever they like".
+  # Keep privileged SAs in their own project so project-level tokenCreator
+  # covers only those SAs and nothing else.
+  "admin-sa-impersonation" = {
+    parent               = "projects/abcd-privileged-sas"
+    roles                = [{ role = "roles/iam.serviceAccountTokenCreator" }]
+    eligible_principals  = ["user:jdoe-adm@abcd.org"]
+    approver_principals  = ["group:gcp-pam-approvers@abcd.org"]
+    max_request_duration = "3600s"
+  }
+
+  # Direct org-level admin with no SA in the middle, so audit logs name
+  # jdoe-adm instead of the SA. This is the most sensitive entitlement here.
+  "org-admin" = {
+    parent                 = "organizations/123456789012"
+    roles                  = [{ role = "roles/resourcemanager.organizationAdmin" }]
+    eligible_principals    = ["group:gcp-org-admins@abcd.org"]
+    approver_principals    = ["group:gcp-pam-approvers@abcd.org"]
+    max_request_duration   = "7200s"
+    admin_email_recipients = ["security@abcd.org"]
+  }
+
+  # Lower-risk, self-service: no approval, but still time-boxed and logged.
+  "oncall-compute-admin" = {
+    parent               = "folders/987654321098"
+    roles                = [{ role = "roles/compute.instanceAdmin.v1" }]
+    eligible_principals  = ["group:gcp-oncall@abcd.org"]
+    max_request_duration = "28800s"
+  }
+}
